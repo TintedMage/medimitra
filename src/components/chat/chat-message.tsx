@@ -14,6 +14,7 @@ export function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === "user";
 
   return (
+    <>
     <div
       className={cn(
         "flex w-full max-w-3xl mx-auto gap-4 mb-6",
@@ -37,11 +38,11 @@ export function ChatMessage({ message }: { message: Message }) {
       >
         <div
           className={cn(
-            "rounded-2xl p-3 text-sm leading-relaxed",
+            "rounded-2xl p-3 text-sm leading-relaxed bg-card",
             isUser
               ? "bg-secondary text-secondary-foreground"
               : "text-foreground",
-          )}
+            )}
         >
           {message.content}
         </div>
@@ -71,5 +72,6 @@ export function ChatMessage({ message }: { message: Message }) {
         </Avatar>
       )}
     </div>
+            </>
   );
 }

@@ -71,7 +71,7 @@ export function ChatInput() {
   };
 
   return (
-<div className="sticky bottom-0 flex flex-col w-full max-w-3xl mx-auto px-4 pb-4 md:px-8 md:pb-8 bg-background pt-0.5">
+<div className="sticky bottom-0 flex flex-col w-full max-w-3xl mx-auto px-4 pb-4 md:px-8 md:pb-8 pt-0.5">
       <div className="relative rounded-2xl border border-border bg-card shadow-sm transition-all focus-within:border-ring">
         {/* Model selector & Context Actions */}
         <div className="flex items-center justify-between border-b border-border px-4 py-2">

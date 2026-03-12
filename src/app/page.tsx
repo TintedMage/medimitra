@@ -7,6 +7,7 @@ import { CalendarPanel } from "@/components/chat/calendar-panel";
 import { MapPanel } from "@/components/chat/map-panel";
 import { NewChatModal } from "@/components/chat/new-chat-modal";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MedicalBackground } from "@/components/ui/medical-bg";
 import { useChatStore } from "@/lib/store";
 
 export default function Home() {
@@ -22,9 +23,10 @@ export default function Home() {
       <Sidebar />
 
       {/* Main chat area */}
-      <main className="relative flex flex-1 flex-col overflow-hidden">
+      <main className="relative flex flex-1 flex-col overflow-hidden bg-transparent">
         {/* Messages */}
-        <ScrollArea className="h-full flex-1 p-4 md:p-8">
+        <MedicalBackground/>
+        <ScrollArea className="h-full flex-1 p-4 md:p-8 bg-transparent">
           <div className="flex flex-col gap-2 mb-40">
             {activeThread?.messages.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
