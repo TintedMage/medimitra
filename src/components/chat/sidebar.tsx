@@ -52,7 +52,7 @@ function SidebarItem({
 }
 
 export function Sidebar() {
-  const { threads, activeThreadId, sidebarOpen, setActiveThread, addThread } =
+  const { threads, activeThreadId, sidebarOpen, setActiveThread, setNewChatModalOpen } =
     useChatStore();
 
   return (
@@ -71,7 +71,11 @@ export function Sidebar() {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button variant="ghost" size="icon-xs" onClick={addThread} />
+                <Button 
+                  variant="ghost" 
+                  size="icon-xs" 
+                  onClick={() => setNewChatModalOpen(true)} 
+                />
               }
             >
               <HugeiconsIcon icon={Add01Icon} />
