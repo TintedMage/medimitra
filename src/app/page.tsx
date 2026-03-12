@@ -19,8 +19,8 @@ export default function Home() {
       {/* Main chat area */}
       <main className="relative flex flex-1 flex-col overflow-hidden">
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4 md:p-8">
-          <div className="flex flex-col gap-2">
+        <ScrollArea className="h-full flex-1 p-4 md:p-8">
+          <div className="flex flex-col gap-2 mb-40">
             {activeThread?.messages.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
             ))}
