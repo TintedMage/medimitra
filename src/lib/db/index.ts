@@ -27,4 +27,34 @@ sqlite.exec(`
     content TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS prescriptions (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    doctor_name TEXT,
+    start_date INTEGER NOT NULL,
+    end_date INTEGER,
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS prescription_medications (
+    id TEXT PRIMARY KEY,
+    prescription_id TEXT NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    dosage TEXT NOT NULL,
+    routine TEXT NOT NULL DEFAULT '[]',
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS medications (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    dosage TEXT NOT NULL,
+    start_date INTEGER NOT NULL,
+    end_date INTEGER,
+    routine TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
 `);

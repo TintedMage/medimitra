@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { messages as messagesTable, threads } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+export const maxDuration = 30;
 const SYSTEM_PROMPT = `You are MediMitra, an expert AI healthcare assistant. Your role is to provide clear, accurate, and compassionate medical guidance to users based on their questions, uploaded images, and real-time health telemetry.
 
 - Always prioritize user safety and evidence-based medical information.
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: ollama("gemma3:1b"),
+    model: ollama("gemma3:4b"),
     system: SYSTEM_PROMPT,
     temperature: 0.7,
     topK: 64,

@@ -10,6 +10,7 @@ import {
   Copy01Icon,
   ThumbsUpIcon,
   ThumbsDownIcon,
+  Add01Icon,
 } from "@hugeicons/core-free-icons";
 import { useChatStore } from "@/lib/store";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,9 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function ChatArea() {
-  const { activeThreadId } = useChatStore();
+  const { activeThreadId, addThread } = useChatStore();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +67,16 @@ export function ChatArea() {
     setInput("");
   };
 
+  const handleNewThread = async () => {
+    const res = await fetch("/api/threads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "New Chat" }),
+    });
+    const thread = await res.json();
+    addThread(thread);
+  };
+
   // Empty state — no thread selected
   if (!activeThreadId) {
     return (
@@ -72,6 +84,21 @@ export function ChatArea() {
         <div className="text-center">
           <p className="text-lg font-medium">Welcome to MediMitra</p>
           <p className="mt-1 text-sm">Create a new thread to start chatting</p>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-lg"
+                  onClick={handleNewThread}
+                  className={"mt-4"}
+                />
+              }
+            >
+              <HugeiconsIcon icon={Add01Icon} />
+            </TooltipTrigger>
+            <TooltipContent>New Chat</TooltipContent>
+          </Tooltip>
         </div>
       </main>
     );
