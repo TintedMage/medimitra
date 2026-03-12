@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 export function ChatInput() {
   const [inputValue, setInputValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { activeThreadId, addMessage } = useChatStore();
+  const {  threads, activeThreadId, addMessage, setThreadUploaded } = useChatStore();
+  const activeThread = threads.find((t) => t.id === activeThreadId);
 
   const handleSend = () => {
     if (!inputValue.trim() || !activeThreadId) return;
@@ -33,6 +34,35 @@ export function ChatInput() {
     }, 1000);
   };
 
+  const handleUploadMockReport = () => {
+    if (!activeThreadId) return;
+
+    // 1. Mark as uploaded to trigger UI changes
+    setThreadUploaded(activeThreadId, true);
+
+    // 2. Add user message
+    addMessage(activeThreadId, {
+      role: "user",
+      content: "I have uploaded my medical report (Mock).",
+    });
+
+    // 3. Add AI simulated response based on mode
+    setTimeout(() => {
+      let aiResponse = "I've received your report. How can I help you analyze it further?";
+      
+      if (activeThread?.mode === "doctor_map") {
+        aiResponse = "I've analyzed your report. Based on the findings, I recommend consulting a specialist. I have located some highly-rated doctors near your area. You can view them on the map panel to your right.";
+      } else if (activeThread?.mode === "report_summary") {
+        aiResponse = "Report analyzed successfully. Your lipid profile shows slightly elevated levels. I've updated your daily routine in the calendar with recommended exercise and dietary adjustments.";
+      }
+
+      addMessage(activeThreadId, {
+        role: "assistant",
+        content: aiResponse,
+      });
+    }, 1200);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -41,14 +71,26 @@ export function ChatInput() {
   };
 
   return (
-    <div className="sticky bottom-0 flex flex-col w-full max-w-3xl mx-auto px-4 pb-4 md:px-8 md:pb-8 bg-background pt-0.5">
+<div className="sticky bottom-0 flex flex-col w-full max-w-3xl mx-auto px-4 pb-4 md:px-8 md:pb-8 bg-background pt-0.5">
       <div className="relative rounded-2xl border border-border bg-card shadow-sm transition-all focus-within:border-ring">
-        {/* Model selector */}
-        <div className="flex items-center gap-3 border-b border-border px-4 py-2">
+        {/* Model selector & Context Actions */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-2">
           <Badge variant="outline" className="cursor-pointer gap-1.5">
             <span className="size-2 rounded-full bg-primary" />
             MediMitra AI
           </Badge>
+
+          {/* Conditional Mock Upload Button */}
+          {activeThread && (activeThread.mode === "doctor_map" || activeThread.mode === "report_summary") && !activeThread.hasUploaded && (
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              onClick={handleUploadMockReport} 
+              className="h-6 text-[10px] rounded-full px-3 animate-in fade-in zoom-in"
+            >
+              Upload Mock Report
+            </Button>
+          )}
         </div>
 
         {/* Input row */}

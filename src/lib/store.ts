@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+export type FeatureMode = "general" | "medication" | "report_summary" | "doctor_map";
+
 export type Message = {
   id: string;
   role: "user" | "assistant";
@@ -11,6 +13,8 @@ export type ChatThread = {
   title: string;
   messages: Message[];
   createdAt: Date;
+  mode: FeatureMode;
+  hasUploaded?: boolean;
 };
 
 type ChatState = {
@@ -19,15 +23,18 @@ type ChatState = {
   sidebarOpen: boolean;
   calendarOpen: boolean;
   selectedDate: number;
+  isNewChatModalOpen: boolean;
 
   // Actions
   setActiveThread: (id: string) => void;
-  addThread: () => void;
+  addThread: (mode: FeatureMode) => void;
   deleteThread: (id: string) => void;
   addMessage: (threadId: string, message: Omit<Message, "id">) => void;
   toggleSidebar: () => void;
   toggleCalendar: () => void;
   setSelectedDate: (date: number) => void;
+  setNewChatModalOpen: (isOpen: boolean) => void;
+  setThreadUploaded: (threadId: string, uploaded: boolean) => void;
 };
 
 const defaultMessages: Message[] = [
@@ -44,34 +51,58 @@ const defaultThread: ChatThread = {
   title: "Health Assistant Chat",
   messages: defaultMessages,
   createdAt: new Date(),
+  mode: "general",
+  hasUploaded: false,
 };
 
 export const useChatStore = create<ChatState>((set) => ({
   threads: [defaultThread],
   activeThreadId: "thread-1",
   sidebarOpen: true,
-  calendarOpen: true,
+  calendarOpen: false,
   selectedDate: 12,
+  isNewChatModalOpen: false,
 
-  setActiveThread: (id) => set({ activeThreadId: id }),
+  setActiveThread: (id) => set((state) => {
+    const thread = state.threads.find((t) => t.id === id);
+    return { 
+      activeThreadId: id,
+      // Automatically manage calendar visibility based on mode
+      calendarOpen: thread?.mode === "medication" || thread?.mode === "general"
+    };
+  }),
 
-  addThread: () => {
+  setNewChatModalOpen: (isOpen) => set({ isNewChatModalOpen: isOpen }),
+
+  addThread: (mode) => {
+    const titles: Record<FeatureMode, string> = {
+      general: "New Chat",
+      medication: "Medication Routine",
+      report_summary: "Report Analysis",
+      doctor_map: "Find a Doctor",
+    };
+
     const newThread: ChatThread = {
       id: `thread-${Date.now()}`,
-      title: "New Chat",
+      title: titles[mode],
+      mode,
+      hasUploaded: false,
       messages: [
         {
           id: `msg-${Date.now()}`,
           role: "assistant",
-          content:
-            "Hello! How can I help you today?",
+          content: `Hello! You've selected the **${titles[mode]}** feature. How can I help you get started?`,
         },
       ],
       createdAt: new Date(),
     };
+    
     set((state) => ({
       threads: [newThread, ...state.threads],
       activeThreadId: newThread.id,
+      isNewChatModalOpen: false, // Close modal on creation
+      // Set the calendar visibility based on the newly selected mode
+      calendarOpen: mode === "medication" || mode === "general"
     }));
   },
 
@@ -102,8 +133,14 @@ export const useChatStore = create<ChatState>((set) => ({
       ),
     })),
 
+  setThreadUploaded: (threadId, uploaded) =>
+    set((state) => ({
+      threads: state.threads.map((t) =>
+        t.id === threadId ? { ...t, hasUploaded: uploaded } : t
+      ),
+    })),
+
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-  toggleCalendar: () =>
-    set((state) => ({ calendarOpen: !state.calendarOpen })),
+  toggleCalendar: () => set((state) => ({ calendarOpen: !state.calendarOpen })),
   setSelectedDate: (date) => set({ selectedDate: date }),
 }));

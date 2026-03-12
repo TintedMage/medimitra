@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/chat/sidebar";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CalendarPanel } from "@/components/chat/calendar-panel";
+import { MapPanel } from "@/components/chat/map-panel";
+import { NewChatModal } from "@/components/chat/new-chat-modal";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatStore } from "@/lib/store";
 
@@ -13,6 +15,9 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full pt-14 overflow-hidden bg-background font-sans text-foreground">
+      {/* Modals */}
+      <NewChatModal />
+
       {/* Left sidebar */}
       <Sidebar />
 
@@ -31,8 +36,12 @@ export default function Home() {
         <ChatInput />
       </main>
 
-      {/* Right calendar panel */}
-      <CalendarPanel />
+      {/* Right panel logic */}
+      {activeThread?.mode === "doctor_map" ? (
+        <MapPanel />
+      ) : (
+        <CalendarPanel />
+      )}
     </div>
   );
 }
