@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { MedicalBackground } from "./medical-background";
 
 type ParsedPrescription = {
   title: string;
@@ -318,9 +319,11 @@ export function ChatArea() {
   }
 
   return (
-    <main className="flex flex-1 flex-col overflow-hidden">
+    <main className="relative flex flex-1 flex-col overflow-hidden">
+      <MedicalBackground />
+
       {/* Messages — native scroll */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+      <div className="relative z-10 flex-1 overflow-y-auto p-4 md:p-8">
         <div className="mx-auto flex max-w-3xl flex-col gap-6 pb-32">
           {messages.map((msg) => {
             const isUser = msg.role === "user";
@@ -454,7 +457,7 @@ export function ChatArea() {
       </div>
 
       {/* Input area */}
-      <div className="sticky bottom-0 mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-0.5 md:px-8 md:pb-8">
+      <div className="sticky bottom-0 z-10 mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-0.5 md:px-8 md:pb-8">
         <div className="mb-2 flex justify-end">
           <Button
             type="button"
