@@ -540,7 +540,9 @@ export function ChatArea() {
               disabled={isStreaming}
               onTranscript={(transcript) => {
                 setInput((current) =>
-                  current.trim() ? `${current.trim()} ${transcript}` : transcript,
+                  current.trim()
+                    ? `${current.trim()} ${transcript}`
+                    : transcript,
                 );
               }}
             />

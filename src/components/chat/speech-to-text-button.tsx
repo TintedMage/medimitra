@@ -117,7 +117,9 @@ export function SpeechToTextButton({
       onClick={handleToggleListening}
       disabled={disabled || !isSupported}
       aria-label={isListening ? "Stop voice input" : "Start voice input"}
-      title={isSupported ? "Speech to text" : "Speech recognition not supported"}
+      title={
+        isSupported ? "Speech to text" : "Speech recognition not supported"
+      }
     >
       {isListening ? "◼" : "🎤"}
     </Button>
