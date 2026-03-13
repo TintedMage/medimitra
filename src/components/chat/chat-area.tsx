@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { MedicalBackground } from "./medical-background";
+import { SpeechToTextButton } from "./speech-to-text-button";
 
 type ParsedPrescription = {
   title: string;
@@ -535,6 +536,14 @@ export function ChatArea() {
                 rows={1}
               />
             </div>
+            <SpeechToTextButton
+              disabled={isStreaming}
+              onTranscript={(transcript) => {
+                setInput((current) =>
+                  current.trim() ? `${current.trim()} ${transcript}` : transcript,
+                );
+              }}
+            />
             <Button
               size="icon-sm"
               onClick={handleSend}
