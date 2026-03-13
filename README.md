@@ -77,12 +77,12 @@ MediMitra includes a manual Google Fit sync flow for MVP telemetry grounding.
 
 - Endpoint: `GET /api/google-fit`
 - Returns sample Google Fit-like telemetry:
-	- steps
-	- average heart rate
-	- average SpO2
-	- sleep hours
-	- calories burned
-	- sync timestamp + timezone metadata
+  - steps
+  - average heart rate
+  - average SpO2
+  - sleep hours
+  - calories burned
+  - sync timestamp + timezone metadata
 
 Quick API check:
 
