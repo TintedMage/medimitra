@@ -1,13 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  CancelCircleIcon,
-  Add01Icon,
-  Delete01Icon,
-  Edit02Icon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,15 +26,6 @@ import {
 import { MEDICATION_TEMPLATES } from "@/lib/medications";
 import { cn } from "@/lib/utils";
 
-const DAYS_FULL = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 interface PrescriptionFormProps {
@@ -51,6 +36,16 @@ interface PrescriptionFormProps {
   isLoading?: boolean;
 }
 
+function createEmptyMedication(): PrescriptionMedication {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    dosage: "",
+    routine: [],
+    notes: "",
+  };
+}
+
 export function PrescriptionForm({
   open,
   onOpenChange,
@@ -58,22 +53,13 @@ export function PrescriptionForm({
   initialPrescription,
   isLoading = false,
 }: PrescriptionFormProps) {
-  const [title, setTitle] = useState(initialPrescription?.title || "");
-  const [doctorName, setDoctorName] = useState(
-    initialPrescription?.doctorName || "",
-  );
-  const [startDate, setStartDate] = useState(
-    initialPrescription?.startDate.toISOString().split("T")[0] || "",
-  );
-  const [endDate, setEndDate] = useState(
-    initialPrescription?.endDate?.toISOString().split("T")[0] || "",
-  );
-  const [notes, setNotes] = useState(initialPrescription?.notes || "");
-  const [medications, setMedications] = useState<PrescriptionMedication[]>(
-    initialPrescription?.medications || [],
-  );
+  const [title, setTitle] = useState("");
+  const [doctorName, setDoctorName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [medications, setMedications] = useState<PrescriptionMedication[]>([]);
 
-  // Reset form when initial prescription changes
   useEffect(() => {
     if (initialPrescription) {
       setTitle(initialPrescription.title);
@@ -84,58 +70,69 @@ export function PrescriptionForm({
       );
       setNotes(initialPrescription.notes || "");
       setMedications(initialPrescription.medications);
-    } else {
-      // Reset for new prescription
-      setTitle("");
-      setDoctorName("");
-      setStartDate("");
-      setEndDate("");
-      setNotes("");
-      setMedications([]);
+      return;
     }
-  }, [initialPrescription]);
+
+    setTitle("");
+    setDoctorName("");
+    setStartDate("");
+    setEndDate("");
+    setNotes("");
+    setMedications([]);
+  }, [initialPrescription, open]);
+
+  const updateMedication = (
+    index: number,
+    updater: (current: PrescriptionMedication) => PrescriptionMedication,
+  ) => {
+    setMedications((current) =>
+      current.map((medication, medicationIndex) =>
+        medicationIndex === index ? updater(medication) : medication,
+      ),
+    );
+  };
 
   const handleAddMedication = () => {
-    const newMed: PrescriptionMedication = {
-      id: crypto.randomUUID(),
-      name: "",
-      dosage: "",
-      routine: [],
-      notes: "",
-    };
-    setMedications([...medications, newMed]);
+    setMedications((current) => [...current, createEmptyMedication()]);
   };
 
   const handleRemoveMedication = (index: number) => {
-    setMedications(medications.filter((_, i) => i !== index));
+    setMedications((current) =>
+      current.filter((_, medicationIndex) => medicationIndex !== index),
+    );
   };
 
-  const handleUpdateMedication = (
+  const handleFieldChange = (
     index: number,
     field: keyof PrescriptionMedication,
-    value: any,
+    value: string | MedicationRoutine[],
   ) => {
-    const updated = [...medications];
-    updated[index] = { ...updated[index], [field]: value };
-    setMedications(updated);
+    updateMedication(index, (current) => ({ ...current, [field]: value }));
   };
 
-  const handleAddRoutineDay = (medIndex: number, dayOfWeek: number) => {
-    const medication = medications[medIndex];
-    const existing = medication.routine.find((r) => r.dayOfWeek === dayOfWeek);
-
-    if (existing) {
-      const newRoutine = medication.routine.filter(
-        (r) => r.dayOfWeek !== dayOfWeek,
+  const handleToggleDay = (medIndex: number, dayOfWeek: number) => {
+    updateMedication(medIndex, (current) => {
+      const exists = current.routine.some(
+        (entry) => entry.dayOfWeek === dayOfWeek,
       );
-      handleUpdateMedication(medIndex, "routine", newRoutine);
-    } else {
-      const newRoutine = [
-        ...medication.routine,
-        { dayOfWeek, times: ["09:00"], active: true },
-      ];
-      handleUpdateMedication(medIndex, "routine", newRoutine);
-    }
+
+      if (exists) {
+        return {
+          ...current,
+          routine: current.routine.filter(
+            (entry) => entry.dayOfWeek !== dayOfWeek,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        routine: [
+          ...current.routine,
+          { dayOfWeek, times: ["09:00"], active: true },
+        ],
+      };
+    });
   };
 
   const handleUpdateRoutineTime = (
@@ -144,24 +141,30 @@ export function PrescriptionForm({
     timeIndex: number,
     time: string,
   ) => {
-    const medication = medications[medIndex];
-    const newRoutine = medication.routine.map((r) =>
-      r.dayOfWeek === dayOfWeek
-        ? {
-            ...r,
-            times: r.times.map((t, idx) => (idx === timeIndex ? time : t)),
-          }
-        : r,
-    );
-    handleUpdateMedication(medIndex, "routine", newRoutine);
+    updateMedication(medIndex, (current) => ({
+      ...current,
+      routine: current.routine.map((entry) =>
+        entry.dayOfWeek === dayOfWeek
+          ? {
+              ...entry,
+              times: entry.times.map((entryTime, index) =>
+                index === timeIndex ? time : entryTime,
+              ),
+            }
+          : entry,
+      ),
+    }));
   };
 
   const handleAddRoutineTime = (medIndex: number, dayOfWeek: number) => {
-    const medication = medications[medIndex];
-    const newRoutine = medication.routine.map((r) =>
-      r.dayOfWeek === dayOfWeek ? { ...r, times: [...r.times, "12:00"] } : r,
-    );
-    handleUpdateMedication(medIndex, "routine", newRoutine);
+    updateMedication(medIndex, (current) => ({
+      ...current,
+      routine: current.routine.map((entry) =>
+        entry.dayOfWeek === dayOfWeek
+          ? { ...entry, times: [...entry.times, "12:00"] }
+          : entry,
+      ),
+    }));
   };
 
   const handleRemoveRoutineTime = (
@@ -169,20 +172,24 @@ export function PrescriptionForm({
     dayOfWeek: number,
     timeIndex: number,
   ) => {
-    const medication = medications[medIndex];
-    const newRoutine = medication.routine.map((r) =>
-      r.dayOfWeek === dayOfWeek
-        ? { ...r, times: r.times.filter((_, idx) => idx !== timeIndex) }
-        : r,
-    );
-    handleUpdateMedication(medIndex, "routine", newRoutine);
+    updateMedication(medIndex, (current) => ({
+      ...current,
+      routine: current.routine.map((entry) =>
+        entry.dayOfWeek === dayOfWeek
+          ? {
+              ...entry,
+              times: entry.times.filter((_, index) => index !== timeIndex),
+            }
+          : entry,
+      ),
+    }));
   };
 
   const handleApplyTemplate = (
     medIndex: number,
     template: MedicationRoutine[],
   ) => {
-    handleUpdateMedication(medIndex, "routine", template);
+    handleFieldChange(medIndex, "routine", template);
   };
 
   const handleSave = () => {
@@ -193,12 +200,13 @@ export function PrescriptionForm({
       return;
     }
 
-    // Validate medications
-    for (const med of medications) {
-      if (!med.name || !med.dosage) {
-        alert("All medications must have a name and dosage");
-        return;
-      }
+    const invalidMedication = medications.some(
+      (medication) => !medication.name || !medication.dosage,
+    );
+
+    if (invalidMedication) {
+      alert("All medications must have a name and dosage");
+      return;
     }
 
     onSave({
@@ -207,94 +215,84 @@ export function PrescriptionForm({
       startDate: new Date(startDate),
       endDate: endDate ? new Date(endDate) : undefined,
       notes: notes || undefined,
-      medications: medications.map((med) => ({
-        ...med,
-        routine: med.routine.sort((a, b) => a.dayOfWeek - b.dayOfWeek),
+      medications: medications.map((medication) => ({
+        ...medication,
+        routine: [...medication.routine].sort(
+          (a, b) => a.dayOfWeek - b.dayOfWeek,
+        ),
       })),
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden border border-border bg-background/80 p-0 shadow-lg supports-backdrop-filter:backdrop-blur-xl">
+        <DialogHeader className="border-b border-border px-6 py-5">
+          <DialogTitle className="text-lg font-semibold">
             {initialPrescription ? "Edit" : "Add"} Prescription
           </DialogTitle>
           <DialogDescription>
-            Create a prescription with multiple medications and their schedules.
+            Create a prescription with medications, dosage, and weekly schedule.
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-6">
-            {/* Prescription Details */}
-            <div className="space-y-4">
+        <ScrollArea className="h-[calc(90vh-10.5rem)] px-6 py-5">
+          <div className="space-y-6 pb-2">
+            <section className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
               <h3 className="text-sm font-semibold text-foreground">
                 Prescription Details
               </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-foreground">Title *</Label>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Title *</Label>
                   <Input
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g., Cough Treatment, Hypertension Management"
-                    className="mt-1"
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="e.g., Hypertension Management"
                   />
                 </div>
-                <div>
-                  <Label className="text-sm text-foreground">Doctor Name</Label>
+                <div className="space-y-1.5">
+                  <Label>Doctor Name</Label>
                   <Input
                     value={doctorName}
-                    onChange={(e) => setDoctorName(e.target.value)}
+                    onChange={(event) => setDoctorName(event.target.value)}
                     placeholder="e.g., Dr. Smith"
-                    className="mt-1"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-foreground">
-                    Start Date *
-                  </Label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Start Date *</Label>
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="mt-1"
+                    onChange={(event) => setStartDate(event.target.value)}
                   />
                 </div>
-                <div>
-                  <Label className="text-sm text-foreground">
-                    End Date (Optional)
-                  </Label>
+                <div className="space-y-1.5">
+                  <Label>End Date (Optional)</Label>
                   <Input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="mt-1"
+                    onChange={(event) => setEndDate(event.target.value)}
                   />
                 </div>
               </div>
 
-              <div>
-                <Label className="text-sm text-foreground">Notes</Label>
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
                 <Textarea
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(event) => setNotes(event.target.value)}
                   placeholder="Additional notes about this prescription..."
-                  className="mt-1"
                 />
               </div>
-            </div>
+            </section>
 
-            <Separator />
-
-            {/* Medications */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <section className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">
                   Medications
                 </h3>
@@ -304,23 +302,26 @@ export function PrescriptionForm({
                   size="sm"
                   onClick={handleAddMedication}
                 >
-                  <HugeiconsIcon icon={Add01Icon} className="mr-1 h-3 w-3" />
+                  <HugeiconsIcon icon={Add01Icon} className="h-3 w-3" />
                   Add Medication
                 </Button>
               </div>
 
               {medications.length === 0 ? (
-                <Card className="p-6 text-center">
+                <Card className="border border-border bg-card py-6 text-center shadow-none">
                   <p className="text-sm text-muted-foreground">
-                    No medications added yet. Click "Add Medication" to start.
+                    Add at least one medication to continue.
                   </p>
                 </Card>
               ) : (
                 <div className="space-y-4">
                   {medications.map((medication, medIndex) => (
-                    <Card key={medication.id} className="p-4">
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between">
+                    <Card
+                      key={medication.id}
+                      className="border border-border bg-card py-4 shadow-none"
+                    >
+                      <div className="space-y-4 px-6">
+                        <div className="flex items-center justify-between">
                           <h4 className="text-sm font-medium text-foreground">
                             Medication {medIndex + 1}
                           </h4>
@@ -329,68 +330,66 @@ export function PrescriptionForm({
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleRemoveMedication(medIndex)}
+                            aria-label="Remove medication"
                           >
                             <HugeiconsIcon icon={Delete01Icon} />
                           </Button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div className="space-y-1.5">
                             <Label className="text-xs text-muted-foreground">
                               Name *
                             </Label>
                             <Input
                               value={medication.name}
-                              onChange={(e) =>
-                                handleUpdateMedication(
+                              onChange={(event) =>
+                                handleFieldChange(
                                   medIndex,
                                   "name",
-                                  e.target.value,
+                                  event.target.value,
                                 )
                               }
-                              placeholder="e.g., Aspirin, Metformin"
-                              className="mt-1"
+                              placeholder="e.g., Aspirin"
                             />
                           </div>
-                          <div>
+                          <div className="space-y-1.5">
                             <Label className="text-xs text-muted-foreground">
                               Dosage *
                             </Label>
                             <Input
                               value={medication.dosage}
-                              onChange={(e) =>
-                                handleUpdateMedication(
+                              onChange={(event) =>
+                                handleFieldChange(
                                   medIndex,
                                   "dosage",
-                                  e.target.value,
+                                  event.target.value,
                                 )
                               }
                               placeholder="e.g., 500mg, 1 tablet"
-                              className="mt-1"
                             />
                           </div>
                         </div>
 
-                        <div>
+                        <div className="space-y-1.5">
                           <Label className="text-xs text-muted-foreground">
                             Notes
                           </Label>
                           <Input
                             value={medication.notes || ""}
-                            onChange={(e) =>
-                              handleUpdateMedication(
+                            onChange={(event) =>
+                              handleFieldChange(
                                 medIndex,
                                 "notes",
-                                e.target.value,
+                                event.target.value,
                               )
                             }
                             placeholder="Take with food, etc."
-                            className="mt-1"
                           />
                         </div>
 
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
                             <Label className="text-xs text-muted-foreground">
                               Schedule
                             </Label>
@@ -399,13 +398,13 @@ export function PrescriptionForm({
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                className="h-6 text-[10px]"
                                 onClick={() =>
                                   handleApplyTemplate(
                                     medIndex,
                                     MEDICATION_TEMPLATES.onceDailyMorning(),
                                   )
                                 }
-                                className="h-6 text-[10px]"
                               >
                                 Once Daily
                               </Button>
@@ -413,13 +412,13 @@ export function PrescriptionForm({
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                className="h-6 text-[10px]"
                                 onClick={() =>
                                   handleApplyTemplate(
                                     medIndex,
                                     MEDICATION_TEMPLATES.twiceDailyMorningEvening(),
                                   )
                                 }
-                                className="h-6 text-[10px]"
                               >
                                 Twice Daily
                               </Button>
@@ -429,13 +428,14 @@ export function PrescriptionForm({
                           <div className="grid grid-cols-1 gap-2">
                             {DAYS_SHORT.map((day, dayIndex) => {
                               const dayRoutine = medication.routine.find(
-                                (r) => r.dayOfWeek === dayIndex,
+                                (entry) => entry.dayOfWeek === dayIndex,
                               );
+
                               return (
                                 <div
-                                  key={dayIndex}
+                                  key={day}
                                   className={cn(
-                                    "rounded border p-2 transition-colors",
+                                    "rounded-md border p-2",
                                     dayRoutine
                                       ? "border-primary bg-primary/5"
                                       : "border-border bg-muted/30",
@@ -444,57 +444,55 @@ export function PrescriptionForm({
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      handleAddRoutineDay(medIndex, dayIndex)
+                                      handleToggleDay(medIndex, dayIndex)
                                     }
-                                    className="w-full text-left"
+                                    className="flex w-full items-center justify-between text-left"
                                   >
-                                    <div className="flex items-center justify-between">
-                                      <span
-                                        className={cn(
-                                          "text-xs font-medium",
-                                          dayRoutine
-                                            ? "text-primary"
-                                            : "text-muted-foreground",
-                                        )}
-                                      >
-                                        {day}
-                                      </span>
-                                      {dayRoutine && (
-                                        <div className="flex gap-1">
-                                          {dayRoutine.times.map((time, idx) => (
-                                            <Badge
-                                              key={idx}
-                                              variant="secondary"
-                                              className="text-[10px]"
-                                            >
-                                              {time}
-                                            </Badge>
-                                          ))}
-                                        </div>
+                                    <span
+                                      className={cn(
+                                        "text-xs font-medium",
+                                        dayRoutine
+                                          ? "text-primary"
+                                          : "text-muted-foreground",
                                       )}
-                                    </div>
+                                    >
+                                      {day}
+                                    </span>
+                                    {dayRoutine && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {dayRoutine.times.map((time, index) => (
+                                          <Badge
+                                            key={`${day}-${index}`}
+                                            variant="secondary"
+                                            className="text-[10px]"
+                                          >
+                                            {time}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
                                   </button>
 
                                   {dayRoutine && (
-                                    <div className="mt-2 space-y-1 pl-2">
+                                    <div className="mt-2 space-y-1">
                                       {dayRoutine.times.map(
                                         (time, timeIndex) => (
                                           <div
-                                            key={timeIndex}
+                                            key={`${day}-${timeIndex}`}
                                             className="flex items-center gap-2"
                                           >
                                             <Input
                                               type="time"
                                               value={time}
-                                              onChange={(e) =>
+                                              className="h-7 text-xs"
+                                              onChange={(event) =>
                                                 handleUpdateRoutineTime(
                                                   medIndex,
                                                   dayIndex,
                                                   timeIndex,
-                                                  e.target.value,
+                                                  event.target.value,
                                                 )
                                               }
-                                              className="h-6 text-xs"
                                             />
                                             <Button
                                               type="button"
@@ -507,6 +505,7 @@ export function PrescriptionForm({
                                                   timeIndex,
                                                 )
                                               }
+                                              aria-label="Remove time"
                                             >
                                               <HugeiconsIcon
                                                 icon={Delete01Icon}
@@ -515,17 +514,18 @@ export function PrescriptionForm({
                                           </div>
                                         ),
                                       )}
+
                                       <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
+                                        className="h-6 w-full text-[10px]"
                                         onClick={() =>
                                           handleAddRoutineTime(
                                             medIndex,
                                             dayIndex,
                                           )
                                         }
-                                        className="h-6 w-full text-[10px]"
                                       >
                                         + Add Time
                                       </Button>
@@ -541,11 +541,11 @@ export function PrescriptionForm({
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           </div>
         </ScrollArea>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-border bg-background/70 px-6 py-4">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

@@ -13,7 +13,35 @@ const SYSTEM_PROMPT = `You are MediMitra, an expert AI healthcare assistant. You
 - Use any available telemetry (e.g., heart rate, SpO2) to personalize your advice, but never make a diagnosis.
 - When appropriate, suggest actionable steps or routines.
 - Respond in a calm, accessible, and supportive tone.
-- Keep responses concise but thorough.`;
+- Keep responses concise but thorough.
+
+Prescription JSON output rule:
+- If the user asks to create, draft, structure, or update a prescription, you MUST include a machine-readable JSON object for database storage.
+- The JSON must follow this exact shape:
+{
+  "title": "string",
+  "doctorName": "string (optional)",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD (optional)",
+  "notes": "string (optional)",
+  "medications": [
+    {
+      "name": "string",
+      "dosage": "string",
+      "routine": [
+        {
+          "dayOfWeek": "number 0-6",
+          "times": ["HH:mm"],
+          "active": true
+        }
+      ],
+      "notes": "string (optional)"
+    }
+  ]
+}
+- Output the JSON inside a fenced json block.
+- Do not include trailing commas in JSON.
+- After the JSON block, ask the user: "Do you want me to save this prescription?"`;
 
 export async function POST(req: Request) {
   const {
@@ -21,12 +49,24 @@ export async function POST(req: Request) {
     threadId,
   }: { messages: UIMessage[]; threadId?: string } = await req.json();
 
+  const modelId = 'gemma3:4b';
+
   // Save user message to database
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   if (threadId && lastUserMessage) {
     const textPart = lastUserMessage.parts?.find((p) => p.type === "text");
-    const content =
-      textPart && "text" in textPart ? textPart.text : "";
+    const fileParts = lastUserMessage.parts?.filter((p) => p.type === "file") ?? [];
+    const textContent = textPart && "text" in textPart ? textPart.text : "";
+    const attachmentSummary = fileParts
+      .map((part) => {
+        if ("filename" in part && part.filename) {
+          return `[Attachment: ${part.filename}]`;
+        }
+        return "[Attachment]";
+      })
+      .join(" ");
+    const content = [textContent, attachmentSummary].filter(Boolean).join(" ");
+
     if (content) {
       await db.insert(messagesTable).values({
         id: lastUserMessage.id ?? `msg-${Date.now()}`,
@@ -53,7 +93,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: ollama("gemma3:4b"),
+    model: ollama(modelId),
     system: SYSTEM_PROMPT,
     temperature: 0.7,
     topK: 64,
@@ -79,5 +119,10 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({// This attaches the model name to the 'start' of the message
+  messageMetadata: ({ part }) => {
+    if (part.type === 'start') {
+      return { model: modelId };
+    }
+  },});
 }

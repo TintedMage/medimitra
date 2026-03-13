@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export type Thread = {
   id: string;
@@ -40,6 +41,14 @@ export type Medication = {
   routine: MedicationRoutine[];
 };
 
+export type PrescriptionConfirmationState = "pending" | "dismissed" | "saved";
+
+export type PrescriptionConfirmationEntry = {
+  threadId: string;
+  messageId: string;
+  state: PrescriptionConfirmationState;
+};
+
 type ChatState = {
   // Thread management
   threads: Thread[];
@@ -68,9 +77,30 @@ type ChatState = {
   addMedication: (medication: Medication) => void;
   removeMedication: (id: string) => void;
   updateMedication: (id: string, medication: Partial<Medication>) => void;
+
+  // Prescription confirmation state (thread + message scoped)
+  prescriptionConfirmations: Record<string, PrescriptionConfirmationEntry>;
+  setPrescriptionConfirmationState: (
+    threadId: string,
+    messageId: string,
+    state: PrescriptionConfirmationState,
+  ) => void;
+  togglePrescriptionConfirmationState: (
+    threadId: string,
+    messageId: string,
+  ) => void;
+  getPrescriptionConfirmationState: (
+    threadId: string,
+    messageId: string,
+  ) => PrescriptionConfirmationState;
 };
 
-export const useChatStore = create<ChatState>((set) => ({
+const getConfirmationKey = (threadId: string, messageId: string) =>
+  `${threadId}:${messageId}`;
+
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
   // Thread management
   threads: [],
   activeThreadId: null,
@@ -134,5 +164,53 @@ export const useChatStore = create<ChatState>((set) => ({
         m.id === id ? { ...m, ...medication } : m
       ),
     })),
-}));
+
+  // Prescription confirmation state
+  prescriptionConfirmations: {},
+  setPrescriptionConfirmationState: (threadId, messageId, confirmationState) =>
+    set((state) => {
+      const key = getConfirmationKey(threadId, messageId);
+      return {
+        prescriptionConfirmations: {
+          ...state.prescriptionConfirmations,
+          [key]: {
+            threadId,
+            messageId,
+            state: confirmationState,
+          },
+        },
+      };
+    }),
+  togglePrescriptionConfirmationState: (threadId, messageId) =>
+    set((state) => {
+      const key = getConfirmationKey(threadId, messageId);
+      const current = state.prescriptionConfirmations[key]?.state ?? "pending";
+      const nextState: PrescriptionConfirmationState =
+        current === "dismissed" ? "pending" : "dismissed";
+
+      return {
+        prescriptionConfirmations: {
+          ...state.prescriptionConfirmations,
+          [key]: {
+            threadId,
+            messageId,
+            state: nextState,
+          },
+        },
+      };
+    }),
+  getPrescriptionConfirmationState: (threadId, messageId) => {
+    const key = getConfirmationKey(threadId, messageId);
+    return get().prescriptionConfirmations[key]?.state ?? "pending";
+  },
+}),
+    {
+      name: "medimitra-chat-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        prescriptionConfirmations: state.prescriptionConfirmations,
+      }),
+    },
+  ),
+);
 
