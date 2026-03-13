@@ -43,5 +43,8 @@ next-env.d.ts
 # SQLite temporary files
 *.db-shm
 *.db-wal
-# Optional: if you don't want the actual DB in git either
-# medimitra.db
+
+# Explicit SQLite database paths
+/medimitra.db
+/medimitra.db-shm
+/medimitra.db-wal
