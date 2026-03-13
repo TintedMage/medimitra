@@ -1,109 +1,216 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
-export type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
-
-export type ChatThread = {
+export type Thread = {
   id: string;
   title: string;
-  messages: Message[];
-  createdAt: Date;
+  createdAt: string | number | null;
+};
+
+export type MedicationRoutine = {
+  dayOfWeek: number; // 0-6 (Sunday-Saturday)
+  times: string[]; // ["09:00", "18:00"]
+  active: boolean;
+};
+
+export type PrescriptionMedication = {
+  id: string;
+  name: string;
+  dosage: string;
+  routine: MedicationRoutine[];
+  notes?: string;
+};
+
+export type Prescription = {
+  id: string;
+  title: string;
+  doctorName?: string;
+  startDate: Date;
+  endDate?: Date;
+  notes?: string;
+  medications: PrescriptionMedication[];
+};
+
+// Legacy medication type for backward compatibility
+export type Medication = {
+  id: string;
+  name: string;
+  dosage: string;
+  startDate: Date;
+  endDate?: Date;
+  routine: MedicationRoutine[];
+};
+
+export type PrescriptionConfirmationState = "pending" | "dismissed" | "saved";
+
+export type PrescriptionConfirmationEntry = {
+  threadId: string;
+  messageId: string;
+  state: PrescriptionConfirmationState;
 };
 
 type ChatState = {
-  threads: ChatThread[];
+  // Thread management
+  threads: Thread[];
   activeThreadId: string | null;
   sidebarOpen: boolean;
-  calendarOpen: boolean;
-  selectedDate: number;
-
-  // Actions
-  setActiveThread: (id: string) => void;
-  addThread: () => void;
-  deleteThread: (id: string) => void;
-  addMessage: (threadId: string, message: Omit<Message, "id">) => void;
+  setThreads: (threads: Thread[]) => void;
+  addThread: (thread: Thread) => void;
+  removeThread: (id: string) => void;
+  setActiveThread: (id: string | null) => void;
   toggleSidebar: () => void;
-  toggleCalendar: () => void;
+
+  // Calendar & Prescription management
+  calendarOpen: boolean;
+  selectedDate: number; // 1-31
+  prescriptions: Prescription[];
+  setPrescriptions: (prescriptions: Prescription[]) => void;
+  addPrescription: (prescription: Prescription) => void;
+  removePrescription: (id: string) => void;
+  updatePrescription: (id: string, prescription: Partial<Prescription>) => void;
   setSelectedDate: (date: number) => void;
+  toggleCalendar: () => void;
+
+  // Legacy medication support (for backward compatibility)
+  medications: Medication[];
+  setMedications: (medications: Medication[]) => void;
+  addMedication: (medication: Medication) => void;
+  removeMedication: (id: string) => void;
+  updateMedication: (id: string, medication: Partial<Medication>) => void;
+
+  // Prescription confirmation state (thread + message scoped)
+  prescriptionConfirmations: Record<string, PrescriptionConfirmationEntry>;
+  setPrescriptionConfirmationState: (
+    threadId: string,
+    messageId: string,
+    state: PrescriptionConfirmationState,
+  ) => void;
+  togglePrescriptionConfirmationState: (
+    threadId: string,
+    messageId: string,
+  ) => void;
+  getPrescriptionConfirmationState: (
+    threadId: string,
+    messageId: string,
+  ) => PrescriptionConfirmationState;
 };
 
-const defaultMessages: Message[] = [
-  {
-    id: "1",
-    role: "assistant",
-    content:
-      "Hello! I'm MediMitra, your AI health assistant. I can help you with medical information, symptom analysis, and health-related questions. How can I assist you today?",
-  },
-];
+const getConfirmationKey = (threadId: string, messageId: string) =>
+  `${threadId}:${messageId}`;
 
-const defaultThread: ChatThread = {
-  id: "thread-1",
-  title: "Health Assistant Chat",
-  messages: defaultMessages,
-  createdAt: new Date(),
-};
-
-export const useChatStore = create<ChatState>((set) => ({
-  threads: [defaultThread],
-  activeThreadId: "thread-1",
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+  // Thread management
+  threads: [],
+  activeThreadId: null,
   sidebarOpen: true,
-  calendarOpen: true,
-  selectedDate: 12,
-
-  setActiveThread: (id) => set({ activeThreadId: id }),
-
-  addThread: () => {
-    const newThread: ChatThread = {
-      id: `thread-${Date.now()}`,
-      title: "New Chat",
-      messages: [
-        {
-          id: `msg-${Date.now()}`,
-          role: "assistant",
-          content:
-            "Hello! How can I help you today?",
-        },
-      ],
-      createdAt: new Date(),
-    };
+  setThreads: (threads) => set({ threads }),
+  addThread: (thread) =>
     set((state) => ({
-      threads: [newThread, ...state.threads],
-      activeThreadId: newThread.id,
-    }));
-  },
-
-  deleteThread: (id) =>
+      threads: [thread, ...state.threads],
+      activeThreadId: thread.id,
+    })),
+  removeThread: (id) =>
     set((state) => {
       const filtered = state.threads.filter((t) => t.id !== id);
       return {
         threads: filtered,
         activeThreadId:
           state.activeThreadId === id
-            ? filtered[0]?.id ?? null
+            ? (filtered[0]?.id ?? null)
             : state.activeThreadId,
       };
     }),
+  setActiveThread: (id) => set({ activeThreadId: id }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
-  addMessage: (threadId, message) =>
+  // Calendar & Prescription management
+  calendarOpen: true,
+  selectedDate: new Date().getDate(),
+  prescriptions: [],
+  setPrescriptions: (prescriptions) => set({ prescriptions }),
+  addPrescription: (prescription) =>
     set((state) => ({
-      threads: state.threads.map((t) =>
-        t.id === threadId
-          ? {
-              ...t,
-              messages: [
-                ...t.messages,
-                { ...message, id: `msg-${Date.now()}` },
-              ],
-            }
-          : t
+      prescriptions: [prescription, ...state.prescriptions],
+    })),
+  removePrescription: (id) =>
+    set((state) => ({
+      prescriptions: state.prescriptions.filter((p) => p.id !== id),
+    })),
+  updatePrescription: (id, prescription) =>
+    set((state) => ({
+      prescriptions: state.prescriptions.map((p) =>
+        p.id === id ? { ...p, ...prescription } : p
+      ),
+    })),
+  setSelectedDate: (date) => set({ selectedDate: date }),
+  toggleCalendar: () => set((s) => ({ calendarOpen: !s.calendarOpen })),
+
+  // Legacy medication support
+  medications: [],
+  setMedications: (medications) => set({ medications }),
+  addMedication: (medication) =>
+    set((state) => ({
+      medications: [medication, ...state.medications],
+    })),
+  removeMedication: (id) =>
+    set((state) => ({
+      medications: state.medications.filter((m) => m.id !== id),
+    })),
+  updateMedication: (id, medication) =>
+    set((state) => ({
+      medications: state.medications.map((m) =>
+        m.id === id ? { ...m, ...medication } : m
       ),
     })),
 
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-  toggleCalendar: () =>
-    set((state) => ({ calendarOpen: !state.calendarOpen })),
-  setSelectedDate: (date) => set({ selectedDate: date }),
-}));
+  // Prescription confirmation state
+  prescriptionConfirmations: {},
+  setPrescriptionConfirmationState: (threadId, messageId, confirmationState) =>
+    set((state) => {
+      const key = getConfirmationKey(threadId, messageId);
+      return {
+        prescriptionConfirmations: {
+          ...state.prescriptionConfirmations,
+          [key]: {
+            threadId,
+            messageId,
+            state: confirmationState,
+          },
+        },
+      };
+    }),
+  togglePrescriptionConfirmationState: (threadId, messageId) =>
+    set((state) => {
+      const key = getConfirmationKey(threadId, messageId);
+      const current = state.prescriptionConfirmations[key]?.state ?? "pending";
+      const nextState: PrescriptionConfirmationState =
+        current === "dismissed" ? "pending" : "dismissed";
+
+      return {
+        prescriptionConfirmations: {
+          ...state.prescriptionConfirmations,
+          [key]: {
+            threadId,
+            messageId,
+            state: nextState,
+          },
+        },
+      };
+    }),
+  getPrescriptionConfirmationState: (threadId, messageId) => {
+    const key = getConfirmationKey(threadId, messageId);
+    return get().prescriptionConfirmations[key]?.state ?? "pending";
+  },
+}),
+    {
+      name: "medimitra-chat-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        prescriptionConfirmations: state.prescriptionConfirmations,
+      }),
+    },
+  ),
+);
+
