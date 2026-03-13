@@ -212,7 +212,7 @@ export function ChatArea() {
       setIsSyncingGoogleFit(true);
       await sendMessage(
         {
-          text: "Fetch the latest medication updates now using Google Fit synced telemetry.",
+          text: "Sync Google Fit telemetry now and provide a latest vitals summary with medication-relevant recommendations.",
         },
         {
           body: {

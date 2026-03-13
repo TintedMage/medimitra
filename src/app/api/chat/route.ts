@@ -116,6 +116,10 @@ export async function POST(req: Request) {
                 externalData,
               )}`,
             },
+            {
+              type: "text",
+              text: "For this response, you MUST include a section titled 'Synced Google Fit Data' and list the latest values for steps, heart rate, SpO2, sleep hours, and calories burned before giving recommendations.",
+            },
           ],
         });
       }
