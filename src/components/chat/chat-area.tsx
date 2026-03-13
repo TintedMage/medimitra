@@ -140,6 +140,7 @@ export function ChatArea() {
   const [files, setFiles] = useState<FileList | undefined>(undefined);
   const [savingPrescriptionForMessageId, setSavingPrescriptionForMessageId] =
     useState<string | null>(null);
+  const [isSyncingGoogleFit, setIsSyncingGoogleFit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -201,6 +202,29 @@ export function ChatArea() {
     setFiles(undefined);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSyncGoogleFitData = async () => {
+    if (!activeThreadId || isStreaming || isSyncingGoogleFit) return;
+
+    try {
+      setIsSyncingGoogleFit(true);
+      await sendMessage(
+        {
+          text: "Fetch the latest medication updates now using Google Fit synced telemetry.",
+        },
+        {
+          body: {
+            threadId: activeThreadId,
+            action: "FETCH_GOOGLE_FIT_DATA",
+          },
+        },
+      );
+    } catch {
+      alert("Could not sync Google Fit data right now. Please try again.");
+    } finally {
+      setIsSyncingGoogleFit(false);
     }
   };
 
@@ -431,6 +455,18 @@ export function ChatArea() {
 
       {/* Input area */}
       <div className="sticky bottom-0 mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-0.5 md:px-8 md:pb-8">
+        <div className="mb-2 flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSyncGoogleFitData}
+            disabled={isStreaming || isSyncingGoogleFit}
+          >
+            <HugeiconsIcon icon={Add01Icon} />
+            {isSyncingGoogleFit ? "Syncing..." : "Sync Google Fit Data"}
+          </Button>
+        </div>
         <div className="relative rounded-2xl border border-border bg-card shadow-sm transition-all focus-within:border-ring">
           {/* Model badge */}
           <div className="flex items-center gap-3 border-b border-border px-4 py-2">

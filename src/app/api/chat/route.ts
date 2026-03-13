@@ -41,18 +41,25 @@ Prescription JSON output rule:
 }
 - Output the JSON inside a fenced json block.
 - Do not include trailing commas in JSON.
-- After the JSON block, ask the user: "Do you want me to save this prescription?"`;
+- After the JSON block, ask the user: "Do you want me to save this prescription?"
+- fill in only missing date fields with reasonable defaults (e.g., startDate defaults to today, endDate defaults to startDate + 30 days) but do not modify any user-provided dates.`;
 
 export async function POST(req: Request) {
   const {
     messages,
     threadId,
-  }: { messages: UIMessage[]; threadId?: string } = await req.json();
+    action,
+  }: { messages: UIMessage[]; threadId?: string; action?: string } =
+    await req.json();
+
+  const workingMessages = [...messages];
 
   const modelId = 'gemma3:4b';
 
   // Save user message to database
-  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const lastUserMessage = [...workingMessages]
+    .reverse()
+    .find((m) => m.role === "user");
   if (threadId && lastUserMessage) {
     const textPart = lastUserMessage.parts?.find((p) => p.type === "text");
     const fileParts = lastUserMessage.parts?.filter((p) => p.type === "file") ?? [];
@@ -92,6 +99,40 @@ export async function POST(req: Request) {
     }
   }
 
+  if (action === "FETCH_GOOGLE_FIT_DATA") {
+    try {
+      const googleFitUrl = new URL("/api/google-fit", req.url).toString();
+      const response = await fetch(googleFitUrl, { cache: "no-store" });
+
+      if (response.ok) {
+        const externalData = await response.json();
+        workingMessages.push({
+          id: `sys-google-fit-${Date.now()}`,
+          role: "system",
+          parts: [
+            {
+              type: "text",
+              text: `Google Fit telemetry sync context: ${JSON.stringify(
+                externalData,
+              )}`,
+            },
+          ],
+        });
+      }
+    } catch {
+      workingMessages.push({
+        id: `sys-google-fit-error-${Date.now()}`,
+        role: "system",
+        parts: [
+          {
+            type: "text",
+            text: "Google Fit telemetry sync failed. Continue with available patient context.",
+          },
+        ],
+      });
+    }
+  }
+
   const result = streamText({
     model: ollama(modelId),
     system: SYSTEM_PROMPT,
@@ -104,7 +145,7 @@ export async function POST(req: Request) {
         repeat_penalty: 1.1,
       },
     },
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(workingMessages),
     async onFinish({ text }) {
       // Save assistant response to database
       if (threadId && text) {
